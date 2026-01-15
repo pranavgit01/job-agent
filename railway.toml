@@ -1,0 +1,9 @@
+cat > railway.toml << 'EOF'
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "cd backend && npm start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+EOF

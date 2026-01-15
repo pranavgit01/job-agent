@@ -1,0 +1,6 @@
+cat > frontend/.gitignore << 'EOF'
+node_modules/
+build/
+.env.local
+.DS_Store
+EOF
