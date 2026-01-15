@@ -1,17 +1,20 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import Anthropic from '@anthropic-ai/sdk';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { targetRoles, preferredLocations, skills, companies } = req.body;
+  const { targetRoles, preferredLocations, skills, companies, userProfile } = req.body;
 
   try {
+    console.log('🔵 [JOB SEARCH] Scraping jobs...');
     // Scrape from LinkedIn, Indeed, Glassdoor, and company career pages
-    const jobs = await scrapeJobs(targetRoles, preferredLocations, skills, companies);
+    const jobs = await scrapeJobs(targetRoles, preferredLocations, skills, companies, userProfile);
     
+    console.log(`✅ [JOB SEARCH] Found ${jobs.length} jobs with AI match scores`);
     res.status(200).json({ jobs, count: jobs.length });
   } catch (error) {
     console.error('Error fetching jobs:', error);
@@ -19,7 +22,7 @@ export default async function handler(req, res) {
   }
 }
 
-async function scrapeJobs(roles, locations, skills, companies) {
+async function scrapeJobs(roles, locations, skills, companies, userProfile) {
   const allJobs = [];
   
   // Use JSearch API - aggregates from LinkedIn, Indeed, Glassdoor, ZipRecruiter
@@ -61,11 +64,13 @@ async function scrapeJobs(roles, locations, skills, companies) {
     new Map(allJobs.map(job => [`${job.title}-${job.company}`, job])).values()
   );
 
-  // Calculate match scores based on skills
-  return uniqueJobs.map(job => ({
-    ...job,
-    matchScore: calculateMatchScore(job, skills)
-  })).sort((a, b) => b.matchScore - a.matchScore);
+  console.log(`🔵 [JOB SEARCH] Calculating AI match scores for ${uniqueJobs.length} jobs...`);
+  
+  // Use AI to calculate intelligent match scores
+  const jobsWithScores = await calculateAIMatchScores(uniqueJobs, userProfile, skills);
+  
+  // Sort by match score (highest first)
+  return jobsWithScores.sort((a, b) => b.matchScore - a.matchScore);
 }
 
 // LinkedIn Jobs via RapidAPI
@@ -303,7 +308,106 @@ function formatSalary(min, max) {
   return null;
 }
 
-function calculateMatchScore(job, skills) {
+// AI-powered intelligent job matching using Anthropic Claude
+async function calculateAIMatchScores(jobs, userProfile, skills) {
+  // If no Anthropic key or no profile, fall back to basic scoring
+  if (!process.env.ANTHROPIC_API_KEY || !userProfile) {
+    console.log('⚠️ Using basic keyword matching (no AI key or profile)');
+    return jobs.map(job => ({
+      ...job,
+      matchScore: calculateBasicMatchScore(job, skills)
+    }));
+  }
+
+  try {
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    // Prepare job summaries for AI analysis (limit to avoid token overflow)
+    const jobSummaries = jobs.slice(0, 30).map((job, idx) => ({
+      index: idx,
+      title: job.title,
+      company: job.company,
+      location: job.location,
+      description: job.description?.slice(0, 400) || 'No description',
+      requirements: Array.isArray(job.requirements) ? job.requirements.slice(0, 5) : [],
+      type: job.type,
+      salary: job.salary
+    }));
+
+    const profileSummary = `
+Candidate Profile:
+- Name: ${userProfile?.name || 'Candidate'}
+- Current Role: ${userProfile?.jobTitle || 'Not specified'}
+- Experience: ${userProfile?.experience || 0} years
+- Skills: ${Array.isArray(userProfile?.skills) ? userProfile.skills.join(', ') : skills || 'Not specified'}
+- Preferred Location: ${userProfile?.location || 'Any'}
+- Target Roles: ${Array.isArray(userProfile?.preferredIndustries) ? userProfile.preferredIndustries.join(', ') : 'Various'}
+`;
+
+    console.log('🔵 [AI MATCHING] Sending', jobSummaries.length, 'jobs to Claude for analysis...');
+
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [
+        {
+          role: 'user',
+          content: `You are an expert job matching AI. Analyze these ${jobSummaries.length} jobs against the candidate's profile and return a match score (70-95) for each job.
+
+${profileSummary}
+
+Jobs to analyze:
+${JSON.stringify(jobSummaries, null, 2)}
+
+For each job, consider:
+1. Skills alignment (most important)
+2. Experience level fit
+3. Role/title relevance
+4. Location match
+5. Job type preference
+
+Return ONLY a JSON array of match scores in the same order, nothing else. Format: [85, 92, 73, 88, ...]`
+        }
+      ],
+    });
+
+    // Parse AI response
+    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+    console.log('🔵 [AI MATCHING] Raw response:', responseText);
+    
+    // Extract JSON array from response
+    const jsonMatch = responseText.match(/\[(\d+,?\s*)+\]/);
+    if (!jsonMatch) {
+      console.log('⚠️ Could not parse AI response, using basic matching');
+      return jobs.map(job => ({
+        ...job,
+        matchScore: calculateBasicMatchScore(job, skills)
+      }));
+    }
+
+    const matchScores = JSON.parse(jsonMatch[0]);
+    console.log('✅ [AI MATCHING] Received', matchScores.length, 'AI match scores:', matchScores);
+
+    // Apply scores to jobs
+    return jobs.map((job, idx) => ({
+      ...job,
+      matchScore: matchScores[idx] !== undefined ? matchScores[idx] : calculateBasicMatchScore(job, skills)
+    }));
+
+  } catch (error) {
+    console.error('❌ [AI MATCHING] Error:', error.message);
+    // Fall back to basic scoring on error
+    return jobs.map(job => ({
+      ...job,
+      matchScore: calculateBasicMatchScore(job, skills)
+    }));
+  }
+}
+
+// Fallback basic keyword matching
+function calculateBasicMatchScore(job, skills) {
   if (!skills) return 70;
   
   const skillsList = skills.toLowerCase().split(',').map(s => s.trim());

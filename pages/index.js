@@ -154,11 +154,19 @@ export default function Home() {
         targetRoles: profile.targetRoles,
         preferredLocations: profile.preferredLocations,
         skills: profile.skills,
-        companies: [] // Add company list if needed
+        companies: [], // Add company list if needed
+        userProfile: {
+          name: profile.fullName || profile.name,
+          jobTitle: profile.jobTitle || profile.currentRole,
+          experience: profile.yearsExperience || profile.experience || '0',
+          skills: profile.skills,
+          location: profile.preferredLocations || profile.location,
+          preferredIndustries: profile.targetRoles
+        }
       };
 
       console.log('🔵 [JOB SEARCH] Sending POST request to /api/jobs/search');
-      console.log('🔵 [JOB SEARCH] Search params:', searchParams);
+      console.log('🔵 [JOB SEARCH] Search params with AI profile:', searchParams);
 
       const response = await fetch('/api/jobs/search', {
         method: 'POST',
