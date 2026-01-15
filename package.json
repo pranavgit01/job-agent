@@ -8,12 +8,15 @@
     "start": "next start"
   },
   "dependencies": {
+    "@prisma/client": "^7.2.0",
+    "@supabase/supabase-js": "^2.90.1",
     "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "cheerio": "^1.1.2",
     "jsonwebtoken": "^9.0.2",
     "next": "^14.0.0",
     "pg": "^8.11.3",
+    "prisma": "^7.2.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   }
