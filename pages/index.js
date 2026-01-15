@@ -16,48 +16,173 @@ export default function Home() {
     resume: ''
   });
 
-  const handleSaveProfile = () => {
-    setProfile(formData);
-    alert('Profile saved! Now click Find Jobs.');
-  };
+  const handleSaveProfile = async () => {
+    console.log('🔵 [PROFILE SAVE] Button clicked');
+    console.log('🔵 [PROFILE SAVE] Form data:', formData);
 
-  const handleFindJobs = async () => {
-    if (!profile) {
-      alert('Please save your profile first!');
+    // Validate form data
+    if (!formData.email || !formData.fullName || !formData.skills) {
+      console.log('❌ [PROFILE SAVE] Missing required fields');
+      alert('Please fill in all required fields (email, name, skills)');
       return;
     }
 
     setLoading(true);
+
+    try {
+      console.log('🔵 [PROFILE SAVE] Sending POST request to /api/profile');
+      
+      // Prepare data for API
+      const profileData = {
+        email: formData.email,
+        name: formData.fullName,
+        skills: formData.skills.split(',').map(s => s.trim()).filter(s => s),
+        experience: formData.yearsExperience || '0',
+        location: formData.preferredLocations || 'Remote',
+        jobTitle: formData.currentRole || 'Not specified',
+        preferredIndustries: formData.targetRoles.split(',').map(s => s.trim()).filter(s => s),
+        salaryMin: 0,
+        salaryMax: 0,
+        workMode: 'remote',
+      };
+
+      console.log('🔵 [PROFILE SAVE] Prepared data:', profileData);
+
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      console.log('🔵 [PROFILE SAVE] Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('🔵 [PROFILE SAVE] Response data:', data);
+
+      if (response.ok) {
+        console.log('✅ [PROFILE SAVE] Profile saved successfully!');
+        setProfile(formData);
+        alert('✅ Profile saved successfully! Now you can find jobs.');
+      } else {
+        console.error('❌ [PROFILE SAVE] Error response:', data);
+        alert(`❌ Error saving profile: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ [PROFILE SAVE] Fetch error:', error);
+      console.error('❌ [PROFILE SAVE] Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+      alert(`❌ Failed to save profile: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFindJobs = async () => {
+    console.log('🔵 [JOB SEARCH] Search button clicked');
+    
+    if (!profile) {
+      console.log('❌ [JOB SEARCH] No profile saved');
+      alert('Please save your profile first!');
+      return;
+    }
+
+    console.log('🔵 [JOB SEARCH] Profile data:', profile);
+    setLoading(true);
     
     try {
-      // Fetch real jobs from API
+      const searchParams = {
+        targetRoles: profile.targetRoles,
+        preferredLocations: profile.preferredLocations,
+        skills: profile.skills,
+        companies: [] // Add company list if needed
+      };
+
+      console.log('🔵 [JOB SEARCH] Sending POST request to /api/jobs/search');
+      console.log('🔵 [JOB SEARCH] Search params:', searchParams);
+
       const response = await fetch('/api/jobs/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          targetRoles: profile.targetRoles,
-          preferredLocations: profile.preferredLocations,
-          skills: profile.skills
-        })
+        body: JSON.stringify(searchParams)
       });
 
+      console.log('🔵 [JOB SEARCH] Response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch jobs');
+        const errorData = await response.json();
+        console.error('❌ [JOB SEARCH] Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch jobs');
       }
 
       const data = await response.json();
+      console.log('🔵 [JOB SEARCH] Response data:', data);
+      console.log('✅ [JOB SEARCH] Found', data.jobs?.length || 0, 'jobs');
+      
       setJobs(data.jobs || []);
       
-      if (data.jobs.length === 0) {
-        alert('No jobs found. Try adjusting your search criteria.');
+      if (!data.jobs || data.jobs.length === 0) {
+        console.log('⚠️ [JOB SEARCH] No jobs found');
+        alert('No jobs found. Try adjusting your search criteria or check if API keys are configured.');
       }
     } catch (error) {
-      console.error('Error fetching jobs:', error);
-      alert('Failed to fetch jobs. Please try again.');
+      console.error('❌ [JOB SEARCH] Fetch error:', error);
+      console.error('❌ [JOB SEARCH] Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
+      alert(`Failed to fetch jobs: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGenerateCoverLetter = async (job) => {
+    console.log('🔵 [COVER LETTER] Generating for job:', job.title);
+    console.log('🔵 [COVER LETTER] User profile:', profile);
+
+    try {
+      const response = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobDescription: `${job.title} at ${job.company}\n\nLocation: ${job.location}\n\n${job.description}`,
+          userProfile: {
+            skills: profile.skills.split(',').map(s => s.trim()),
+            experience: profile.yearsExperience,
+            jobTitle: profile.currentRole,
+            name: profile.fullName,
+          },
+        }),
+      });
+
+      console.log('🔵 [COVER LETTER] Response status:', response.status);
+      
+      const data = await response.json();
+      console.log('🔵 [COVER LETTER] Response:', data);
+
+      if (response.ok) {
+        console.log('✅ [COVER LETTER] Generated successfully');
+        // Create a modal or download the cover letter
+        const blob = new Blob([data.coverLetter], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cover-letter-${job.company}.txt`;
+        a.click();
+        alert('Cover letter downloaded!');
+      } else {
+        console.error('❌ [COVER LETTER] Error:', data.error);
+        alert('Error generating cover letter: ' + data.error);
+      }
+    } catch (error) {
+      console.error('❌ [COVER LETTER] Fetch error:', error);
+      alert('Error: ' + error.message);
     }
   };
 
@@ -134,9 +259,10 @@ export default function Home() {
             </div>
             <button
               onClick={handleSaveProfile}
-              style={{ marginTop: '1.5rem', width: '100%', background: '#2563eb', color: 'white', padding: '0.75rem', borderRadius: '8px', fontSize: '1rem', fontWeight: '600', border: 'none', cursor: 'pointer' }}
+              disabled={loading}
+              style={{ marginTop: '1.5rem', width: '100%', background: '#2563eb', color: 'white', padding: '0.75rem', borderRadius: '8px', fontSize: '1rem', fontWeight: '600', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}
             >
-              Save Profile & Continue
+              {loading ? '💾 Saving...' : '💾 Save Profile & Continue'}
             </button>
           </div>
         ) : (
@@ -181,14 +307,22 @@ export default function Home() {
                         Source: {job.source}
                       </p>
                     )}
-                    <a 
-                      href={job.applyUrl || '#'} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ display: 'block', width: '100%', background: '#2563eb', color: 'white', padding: '0.75rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', textAlign: 'center', textDecoration: 'none' }}
-                    >
-                      Apply Now →
-                    </a>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <a 
+                        href={job.applyUrl || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        style={{ flex: 1, background: '#2563eb', color: 'white', padding: '0.75rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', textAlign: 'center', textDecoration: 'none' }}
+                      >
+                        Apply Now →
+                      </a>
+                      <button
+                        onClick={() => handleGenerateCoverLetter(job)}
+                        style={{ flex: 1, background: '#7c3aed', color: 'white', padding: '0.75rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}
+                      >
+                        📝 Generate Cover Letter
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
