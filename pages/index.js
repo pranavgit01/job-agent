@@ -4,6 +4,8 @@ export default function Home() {
   const [profile, setProfile] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [allProfiles, setAllProfiles] = useState([]);
+  const [showProfileSelector, setShowProfileSelector] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -18,6 +20,53 @@ export default function Home() {
     companyPreferences: '',
     resume: ''
   });
+
+  const handleLoadProfiles = async () => {
+    console.log('🔵 Loading all profiles...');
+    setLoading(true);
+    try {
+      const response = await fetch('/api/profile/list');
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Profiles loaded:', data.profiles.length);
+        setAllProfiles(data.profiles);
+        setShowProfileSelector(true);
+      } else {
+        alert('Failed to load profiles: ' + data.error);
+      }
+    } catch (error) {
+      console.error('❌ Error loading profiles:', error);
+      alert('Error loading profiles');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectProfile = (profile) => {
+    console.log('🔵 Selected profile:', profile);
+    
+    // Parse skills and target roles if they're strings
+    const skills = typeof profile.skills === 'string' ? profile.skills : (Array.isArray(profile.skills) ? profile.skills.join(', ') : '');
+    const targetRoles = typeof profile.target_roles === 'string' ? profile.target_roles : (Array.isArray(profile.target_roles) ? profile.target_roles.join(', ') : '');
+    
+    setFormData({
+      fullName: profile.full_name || '',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      currentRole: profile.job_title || '',
+      yearsExperience: profile.years_experience?.toString() || '',
+      skills: skills,
+      targetRoles: targetRoles,
+      preferredLocations: profile.preferred_locations || '',
+      salaryExpectation: profile.salary_expectation || '',
+      companyPreferences: profile.company_preferences || '',
+      resume: profile.resume || ''
+    });
+    
+    setShowProfileSelector(false);
+    alert('Profile loaded! You can now edit and save.');
+  };
 
   const handleSaveProfile = async () => {
     console.log('🔵 [PROFILE SAVE] Button clicked');
@@ -205,7 +254,114 @@ export default function Home() {
 
         {!profile ? (
           <div style={{ background: 'white', borderRadius: '12px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>Create Your Profile</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Create Your Profile</h2>
+              <button
+                type="button"
+                onClick={handleLoadProfiles}
+                disabled={loading}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  backgroundColor: '#10b981',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                  fontWeight: '600',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1
+                }}
+              >
+                {loading ? 'Loading...' : '📥 Load Profile'}
+              </button>
+            </div>
+
+            {showProfileSelector && allProfiles.length > 0 && (
+              <div style={{
+                marginBottom: '1.5rem',
+                padding: '1rem',
+                backgroundColor: '#f3f4f6',
+                borderRadius: '8px',
+                border: '2px solid #10b981'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1f2937' }}>Select a Profile</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowProfileSelector(false)}
+                    style={{
+                      padding: '0.25rem 0.75rem',
+                      backgroundColor: '#ef4444',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gap: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
+                  {allProfiles.map((prof) => (
+                    <div
+                      key={prof.id}
+                      onClick={() => handleSelectProfile(prof)}
+                      style={{
+                        padding: '1rem',
+                        backgroundColor: 'white',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        border: '1px solid #d1d5db',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#eff6ff';
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'white';
+                        e.currentTarget.style.borderColor = '#d1d5db';
+                      }}
+                    >
+                      <div style={{ fontWeight: '600', fontSize: '1.1rem', marginBottom: '0.25rem' }}>
+                        {prof.full_name}
+                      </div>
+                      <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                        {prof.email} • {prof.job_title}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showProfileSelector && allProfiles.length === 0 && (
+              <div style={{
+                marginBottom: '1.5rem',
+                padding: '1rem',
+                backgroundColor: '#fef3c7',
+                borderRadius: '8px',
+                textAlign: 'center'
+              }}>
+                <p style={{ color: '#92400e' }}>No profiles found. Create your first profile below!</p>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileSelector(false)}
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    backgroundColor: '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
               <input
                 type="text"
