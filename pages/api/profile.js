@@ -3,14 +3,7 @@ import { Pool } from 'pg';
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  connectionTimeoutMillis: 5000,
-  query_timeout: 10000,
-  // Force IPv4
-  host: 'db.zowslouizidyzagjznnd.supabase.co',
-  port: 5432,
-  database: 'postgres',
-  user: 'postgres',
-  password: 'Ramniyata01',
+  connectionTimeoutMillis: 10000,
 });
 
 export default async function handler(req, res) {
