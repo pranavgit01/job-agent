@@ -29,22 +29,36 @@ export default function Home() {
 
     setLoading(true);
     
-    // Generate mock jobs for now
-    const mockJobs = Array(10).fill(null).map((_, i) => ({
-      id: `job-${i}`,
-      title: `${profile.targetRoles.split(',')[0]} Position ${i + 1}`,
-      company: `Tech Company ${String.fromCharCode(65 + i)}`,
-      location: profile.preferredLocations.split(',')[0] || 'Remote',
-      salary: '$100k - $150k',
-      type: 'Full-time',
-      description: 'Exciting opportunity to work with cutting-edge technologies.',
-      requirements: ['3+ years experience', 'Team collaboration', 'Problem solving'],
-      matchScore: 70 + Math.floor(Math.random() * 25),
-      postedDays: Math.floor(Math.random() * 7)
-    }));
+    try {
+      // Fetch real jobs from API
+      const response = await fetch('/api/jobs/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetRoles: profile.targetRoles,
+          preferredLocations: profile.preferredLocations,
+          skills: profile.skills
+        })
+      });
 
-    setJobs(mockJobs);
-    setLoading(false);
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
+
+      const data = await response.json();
+      setJobs(data.jobs || []);
+      
+      if (data.jobs.length === 0) {
+        alert('No jobs found. Try adjusting your search criteria.');
+      }
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      alert('Failed to fetch jobs. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -162,9 +176,19 @@ export default function Home() {
                         </span>
                       ))}
                     </div>
-                    <button style={{ width: '100%', background: '#2563eb', color: 'white', padding: '0.75rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600' }}>
-                      Prepare Application
-                    </button>
+                    {job.source && (
+                      <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginBottom: '0.5rem' }}>
+                        Source: {job.source}
+                      </p>
+                    )}
+                    <a 
+                      href={job.applyUrl || '#'} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ display: 'block', width: '100%', background: '#2563eb', color: 'white', padding: '0.75rem', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', textAlign: 'center', textDecoration: 'none' }}
+                    >
+                      Apply Now →
+                    </a>
                   </div>
                 ))}
               </div>
