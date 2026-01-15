@@ -8,11 +8,14 @@ export default function Home() {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
+    phone: '',
     currentRole: '',
     yearsExperience: '',
     skills: '',
     targetRoles: '',
     preferredLocations: '',
+    salaryExpectation: '',
+    companyPreferences: '',
     resume: ''
   });
 
@@ -36,11 +39,15 @@ export default function Home() {
       const profileData = {
         email: formData.email,
         name: formData.fullName,
+        phone: formData.phone,
         skills: formData.skills.split(',').map(s => s.trim()).filter(s => s),
         experience: formData.yearsExperience || '0',
         location: formData.preferredLocations || 'Remote',
         jobTitle: formData.currentRole || 'Not specified',
         preferredIndustries: formData.targetRoles.split(',').map(s => s.trim()).filter(s => s),
+        salaryExpectation: formData.salaryExpectation || '',
+        companyPreferences: formData.companyPreferences || '',
+        resume: formData.resume || '',
         salaryMin: 0,
         salaryMax: 0,
         workMode: 'remote',
@@ -215,6 +222,13 @@ export default function Home() {
                 style={{ padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem' }}
               />
               <input
+                type="tel"
+                placeholder="Phone Number"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                style={{ padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem' }}
+              />
+              <input
                 type="text"
                 placeholder="Current Role *"
                 value={formData.currentRole}
@@ -247,6 +261,20 @@ export default function Home() {
                 placeholder="Preferred Locations (e.g., Remote, San Francisco)"
                 value={formData.preferredLocations}
                 onChange={(e) => setFormData({...formData, preferredLocations: e.target.value})}
+                style={{ padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', gridColumn: 'span 2' }}
+              />
+              <input
+                type="text"
+                placeholder="Salary Expectation (e.g., $100k - $150k)"
+                value={formData.salaryExpectation}
+                onChange={(e) => setFormData({...formData, salaryExpectation: e.target.value})}
+                style={{ padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', gridColumn: 'span 2' }}
+              />
+              <input
+                type="text"
+                placeholder="Company Preferences (e.g., Remote-first, Startups, Fortune 500)"
+                value={formData.companyPreferences}
+                onChange={(e) => setFormData({...formData, companyPreferences: e.target.value})}
                 style={{ padding: '0.75rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', gridColumn: 'span 2' }}
               />
               <textarea

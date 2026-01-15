@@ -61,21 +61,29 @@ export default async function handler(req, res) {
         const result = await client.query(
           `UPDATE profiles 
            SET full_name = $1,
-               job_title = $2,
-               years_experience = $3,
-               skills = $4,
-               target_roles = $5,
-               preferred_locations = $6,
+               phone = $2,
+               job_title = $3,
+               years_experience = $4,
+               skills = $5,
+               target_roles = $6,
+               preferred_locations = $7,
+               salary_expectation = $8,
+               company_preferences = $9,
+               resume = $10,
                updated_at = NOW()
-           WHERE user_id = $7
+           WHERE user_id = $11
            RETURNING *`,
           [
             profileData.name,
+            profileData.phone || null,
             profileData.jobTitle || 'Not specified',
             parseInt(profileData.experience) || 0,
             Array.isArray(profileData.skills) ? profileData.skills.join(', ') : profileData.skills,
             Array.isArray(profileData.preferredIndustries) ? profileData.preferredIndustries.join(', ') : profileData.preferredIndustries,
             profileData.location || 'Remote',
+            profileData.salaryExpectation || null,
+            profileData.companyPreferences || null,
+            profileData.resume || null,
             userId
           ]
         );
@@ -85,19 +93,24 @@ export default async function handler(req, res) {
         // Create new profile
         const result = await client.query(
           `INSERT INTO profiles (
-            user_id, full_name, job_title, years_experience, 
-            skills, target_roles, preferred_locations, updated_at
+            user_id, full_name, phone, job_title, years_experience, 
+            skills, target_roles, preferred_locations, 
+            salary_expectation, company_preferences, resume, updated_at
            )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
            RETURNING *`,
           [
             userId,
             profileData.name,
+            profileData.phone || null,
             profileData.jobTitle || 'Not specified',
             parseInt(profileData.experience) || 0,
             Array.isArray(profileData.skills) ? profileData.skills.join(', ') : profileData.skills,
             Array.isArray(profileData.preferredIndustries) ? profileData.preferredIndustries.join(', ') : profileData.preferredIndustries,
-            profileData.location || 'Remote'
+            profileData.location || 'Remote',
+            profileData.salaryExpectation || null,
+            profileData.companyPreferences || null,
+            profileData.resume || null
           ]
         );
         profile = result.rows[0];
